@@ -94,6 +94,11 @@ class CPU:
             elif instruction == 0b01000111:
                 print(self.reg[mar])
                 self.pc += 2
+            elif instruction == 0b10100000:
+                reg_a = self.ram[self.pc+1]
+                reg_b = self.ram[self.pc+2]
+                value = self.alu("ADD", reg_a, reg_b)
+                self.pc += 3
             elif instruction == 0b10100010:
                 reg_a = self.ram[self.pc+1]
                 reg_b = self.ram[self.pc+2]
@@ -106,8 +111,6 @@ class CPU:
                 top_of_stack_address = self.reg[self.sp]
                 self.ram[top_of_stack_address] = val
                 self.pc+=2
-
-
             elif instruction == 0b01000110:
                 top_of_stack_address = self.reg[self.sp]
                 print('top',top_of_stack_address)
@@ -115,12 +118,25 @@ class CPU:
                 val = self.ram[top_of_stack_address]
                 reg_num = mar
                 self.reg[reg_num] = val
-
-                
                 self.reg[self.sp] += 1
                 self.pc += 2
+            elif instruction == 0b01010000:
+                return_address = self.pc + 2
 
+                self.reg[self.sp] -= 1
+                top_of_stack_address = self.reg[self.sp]
+                self.ram[top_of_stack_address] = return_address
 
+                reg_num = mar
+                subroutine_address = self.reg[reg_num]
+
+                self.pc = subroutine_address
+            elif instruction == 0b00010001:
+                top_of_stack_address = self.reg[self.sp]
+                return_address = self.ram[top_of_stack_address]
+                self.reg[self.sp] += 1
+
+                self.pc = return_address
 
             elif instruction == 0b00000001:
                 halted = True
