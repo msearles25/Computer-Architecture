@@ -11,6 +11,7 @@ class CPU:
         self.pc = 0        
         self.sp = 7
         self.reg[self.sp] = 0xf4
+        self.flags = 0b00000000
 
     def load(self):
         """Load a program into memory."""
@@ -53,6 +54,15 @@ class CPU:
         #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "CMP":
+
+            eq = (self.flags & 0b00000001)
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.flags = 0b00000001
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.flags = 0b00000100
+            else:
+                self.flags = 0b00000010
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -86,27 +96,40 @@ class CPU:
         halted = False
         while not halted: 
             instruction = self.ram[self.pc]
-            mar = self.ram[self.pc + 1]
-            mdr = self.ram[self.pc + 2]
+            o_a = self.ram[self.pc+1]
+            o_b = self.ram[self.pc+2]
             if instruction == 0b10000010:
-                self.reg[mar] = mdr
+                self.reg[o_a] = o_b
                 self.pc += 3
             elif instruction == 0b01000111:
-                print(self.reg[mar])
+                print(self.reg[o_a])
                 self.pc += 2
             elif instruction == 0b10100000:
-                reg_a = self.ram[self.pc+1]
-                reg_b = self.ram[self.pc+2]
-                value = self.alu("ADD", reg_a, reg_b)
+                value = self.alu("ADD", o_a, o_b)
                 self.pc += 3
             elif instruction == 0b10100010:
-                reg_a = self.ram[self.pc+1]
-                reg_b = self.ram[self.pc+2]
-                value = self.alu("MUL", reg_a, reg_b)
+                value = self.alu("MUL", o_a, o_b)
+                self.pc += 3     
+
+            elif instruction == 0b10100111: # CMP
+                self.alu("CMP", o_a, o_b) 
                 self.pc += 3
+            elif instruction == 0b01010100: # JMP
+                self.pc = self.reg[o_a]
+            elif instruction == 0b01010101: #JEQ
+                if self.flags == 0b00000001:
+                    self.pc = self.reg[o_a]
+                else:
+                    self.pc += 2
+            elif instruction == 0b01010110: #JNE
+                if self.flags != 0b00000001:
+                    self.pc = self.reg[o_a]
+                else:
+                    self.pc += 2
+
             elif instruction == 0b01000101:
                 self.reg[self.sp] -= 1
-                reg_num = mar
+                reg_num = o_a
                 val = self.reg[reg_num]
                 top_of_stack_address = self.reg[self.sp]
                 self.ram[top_of_stack_address] = val
@@ -116,7 +139,7 @@ class CPU:
                 print('top',top_of_stack_address)
                 print('value',self.ram[top_of_stack_address])
                 val = self.ram[top_of_stack_address]
-                reg_num = mar
+                reg_num = o_a
                 self.reg[reg_num] = val
                 self.reg[self.sp] += 1
                 self.pc += 2
@@ -127,7 +150,7 @@ class CPU:
                 top_of_stack_address = self.reg[self.sp]
                 self.ram[top_of_stack_address] = return_address
 
-                reg_num = mar
+                reg_num = o_a
                 subroutine_address = self.reg[reg_num]
 
                 self.pc = subroutine_address
@@ -137,7 +160,6 @@ class CPU:
                 self.reg[self.sp] += 1
 
                 self.pc = return_address
-
             elif instruction == 0b00000001:
                 halted = True
             else:
